@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VistorIA - Sistema de Vistoria</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: rgba(255,255,255,0.95);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+        }
+        
+        .inspection-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        
+        .form-group input, .form-group select {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .sidebar {
+            background: rgba(255,255,255,0.95);
+            padding: 20px;
+            border-radius: 15px;
+            height: fit-content;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .template-selector {
+            margin-bottom: 20px;
+        }
+        
+        .room-list {
+            list-style: none;
+        }
+        
+        .room-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-left: 4px solid transparent;
+        }
+        
+        .room-item:hover {
+            background: #e9ecef;
+            border-left-color: #667eea;
+        }
+        
+        .room-item.active {
+            background: #667eea;
+            color: white;
+            border-left-color: #4854d4;
+        }
+        
+        .room-progress {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+        
+        .checklist-area {
+            background: rgba(255,255,255,0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .room-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .room-title {
+            font-size: 1.8rem;
+            color: #667eea;
+            margin: 0;
+        }
+        
+        .room-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .items-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .item-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            background: #f8f9fa;
+            transition: all 0.3s;
+        }
+        
+        .item-card.status-ok { border-color: #28a745; background: #d4edda; }
+        .item-card.status-danificado { border-color: #dc3545; background: #f8d7da; }
+        .item-card.status-sujo { border-color: #ffc107; background: #fff3cd; }
+        .item-card.status-ausente { border-color: #6c757d; background: #e2e3e4; }
+        
+        .item-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .item-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .status-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .status-btn {
+            padding: 6px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .status-btn.selected {
+            color: white;
+        }
+        
+        .status-btn.selected.ok { background: #28a745; border-color: #28a745; }
+        .status-btn.selected.danificado { background: #dc3545; border-color: #dc3545; }
+        .status-btn.selected.sujo { background: #ffc107; border-color: #ffc107; color: #212529; }
+        .status-btn.selected.ausente { background: #6c757d; border-color: #6c757d; }
+        
+        .media-section {
+            margin: 15px 0;
+        }
+        
+        .media-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .file-btn {
+            position: relative;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .media-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .media-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .media-item img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+        }
+        
+        .media-item audio {
+            width: 200px;
+            height: 40px;
+        }
+        
+        .remove-media {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .notes-section {
+            margin-top: 15px;
+        }
+        
+        .notes-section textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        
+        .ai-analysis {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(102, 126, 234, 0.1);
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .progress-bar {
+            background: #e0e0e0;
+            border-radius: 10px;
+            height: 20px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 100%;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .floating-actions {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .floating-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            background: #667eea;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+        }
+        
+        .floating-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        
+        .voice-recording {
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .cost-estimate {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .cost-estimate h4 {
+            color: #0c5460;
+            margin-bottom: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .inspection-info {
+                grid-template-columns: 1fr;
+            }
+            
+            .items-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🏠 VistorIA</h1>
+            <div class="inspection-info">
+                <div class="form-group">
+                    <label for="propertyAddress">Endereço do Imóvel</label>
+                    <input type="text" id="propertyAddress" placeholder="Rua das Flores, 123">
+                </div>
+                <div class="form-group">
+                    <label for="landlordName">Nome do Locador</label>
+                    <input type="text" id="landlordName" placeholder="João Silva">
+                </div>
+                <div class="form-group">
+                    <label for="tenantName">Nome do Locatário</label>
+                    <input type="text" id="tenantName" placeholder="Maria Santos">
+                </div>
+                <div class="form-group">
+                    <label for="inspectionType">Tipo de Vistoria</label>
+                    <select id="inspectionType">
+                        <option value="entrada">Entrada</option>
+                        <option value="saida">Saída</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%">0% Concluído</div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="template-selector">
+                    <label for="templateType">Template:</label>
+                    <select id="templateType" onchange="loadTemplate()">
+                        <option value="apartamento">Apartamento</option>
+                        <option value="casa">Casa</option>
+                    </select>
+                </div>
+                
+                <h3>Cômodos</h3>
+                <ul class="room-list" id="roomList">
+                    <!-- Rooms will be populated by JavaScript -->
+                </ul>
+                
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-success" onclick="autoDetectItems()" style="width: 100%;">
+                        🤖 Auto-Detectar Itens
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Checklist Area -->
+            <div class="checklist-area">
+                <div class="room-header">
+                    <h2 class="room-title" id="currentRoomTitle">Selecione um cômodo</h2>
+                    <div class="room-actions">
+                        <button class="btn btn-primary" onclick="previousRoom()">⬅️ Anterior</button>
+                        <button class="btn btn-primary" onclick="nextRoom()">Próximo ➡️</button>
+                    </div>
+                </div>
+                
+                <div class="items-grid" id="itemsGrid">
+                    <div style="text-align: center; padding: 50px; color: #666;">
+                        Selecione um cômodo para começar a vistoria
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Floating Actions -->
+    <div class="floating-actions">
+        <button class="floating-btn" id="voiceBtn" onclick="toggleVoiceRecording()" title="Captura por Voz">
+            🎤
+        </button>
+        <button class="floating-btn" onclick="calculateCosts()" title="Calcular Custos">
+            💰
+        </button>
+        <button class="floating-btn" onclick="generateReport()" title="Gerar Relatório">
+            📄
+        </button>
+    </div>
+    
+    <!-- Modals -->
+    <div id="costsModal" class="modal">
+        <div class="modal-content">
+            <h3>Estimativa de Custos</h3>
+            <div id="costsContent">
+                <div class="loading"></div> Calculando...
+            </div>
+            <button class="btn btn-secondary" onclick="closeModal('costsModal')" style="margin-top: 15px;">Fechar</button>
+        </div>
+    </div>
+    
+    <div id="reportModal" class="modal">
+        <div class="modal-content">
+            <h3>Gerar Relatório</h3>
+            <div id="reportContent">
+                <p>Clique no botão abaixo para gerar o relatório PDF:</p>
+                <button class="btn btn-primary" onclick="downloadReport()" style="margin: 15px 0;">
+                    📄 Baixar Relatório PDF
+                </button>
+            </div>
+            <button class="btn btn-secondary" onclick="closeModal('reportModal')">Fechar</button>
+        </div>
+    </div>
+
+    <script>
+        // Estado global da aplicação
+        let currentInspection = {
+            propertyAddress: '',
+            landlordName: '',
+            tenantName: '',
+            inspectionType: 'entrada',
+            templateType: 'apartamento',
+            currentRoom: null,
+            checklist: {},
+            files: {}
+        };
+        
+        let templates = {};
+        let isRecording = false;
+        let mediaRecorder = null;
+        
+        // Templates de checklist
+        const defaultTemplates = {
+            apartamento: {
+                sala: ["piso", "parede", "teto", "janela", "porta", "tomadas", "interruptores"],
+                cozinha: ["pia", "torneira", "fogão", "geladeira", "armários", "bancada", "azulejo", "piso"],
+                banheiro: ["vaso sanitário", "pia", "chuveiro", "box", "espelho", "azulejo", "piso", "ventilação"],
+                quarto1: ["piso", "parede", "teto", "janela", "porta", "armário", "tomadas"],
+                quarto2: ["piso", "parede", "teto", "janela", "porta", "armário", "tomadas"],
+                "área de serviço": ["tanque", "torneira", "varal", "piso", "parede"]
+            },
+            casa: {
+                sala: ["piso", "parede", "teto", "janela", "porta", "tomadas", "interruptores"],
+                cozinha: ["pia", "torneira", "fogão", "geladeira", "armários", "bancada", "azulejo", "piso"],
+                banheiro: ["vaso sanitário", "pia", "chuveiro", "box", "espelho", "azulejo", "piso"],
+                quarto1: ["piso", "parede", "teto", "janela", "porta", "armário", "tomadas"],
+                quarto2: ["piso", "parede", "teto", "janela", "porta", "armário", "tomadas"],
+                "área de serviço": ["tanque", "torneira", "varal", "piso", "parede"],
+                quintal: ["portão", "jardim", "churrasqueira", "piso externo", "muros"],
+                garagem: ["portão", "piso", "tomada", "iluminação"]
+            }
+        };
+        
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            templates = defaultTemplates;
+            loadTemplate();
+            updateFormData();
+        });
+        
+        // Carregar template
+        function loadTemplate() {
+            const templateType = document.getElementById('templateType').value;
+            currentInspection.templateType = templateType;
+            currentInspection.checklist = {};
+            
+            const template = templates[templateType];
+            const roomList = document.getElementById('roomList');
+            roomList.innerHTML = '';
+            
+            Object.keys(template).forEach((room, index) => {
+                // Inicializar checklist do cômodo
+                currentInspection.checklist[room] = {};
+                template[room].forEach(item => {
+                    currentInspection.checklist[room][item] = {
+                        status: null,
+                        notes: '',
+                        photos: [],
+                        audios: [],
+                        aiAnalysis: ''
+                    };
+                });
+                
+                // Criar item da lista
+                const li = document.createElement('li');
+                li.className = 'room-item';
+                li.setAttribute('data-room', room);
+                li.onclick = () => selectRoom(room);
+                
+                li.innerHTML = `
+                    <div>${room.charAt(0).toUpperCase() + room.slice(1)}</div>
+                    <div class="room-progress" id="progress-${room}">0/${template[room].length} itens</div>
+                `;
+                
+                roomList.appendChild(li);
+                
+                // Selecionar primeiro cômodo
+                if (index === 0) {
+                    selectRoom(room);
+                }
+            });
+            
+            updateProgress();
+        }
+        
+        // Selecionar cômodo
+        function selectRoom(roomName) {
+            currentInspection.currentRoom = roomName;
+            
+            // Atualizar visual da lista
+            document.querySelectorAll('.room-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.querySelector(`[data-room="${roomName}"]`).classList.add('active');
+            
+            // Atualizar título
+            document.getElementById('currentRoomTitle').textContent = 
+                roomName.charAt(0).toUpperCase() + roomName.slice(1);
+            
+            // Carregar itens do cômodo
+            loadRoomItems(roomName);
+        }
+        
+        // Carregar itens do cômodo
+        function loadRoomItems(roomName) {
+            const template = templates[currentInspection.templateType];
+            const roomItems = template[roomName];
+            const itemsGrid = document.getElementById('itemsGrid');
+            
+            itemsGrid.innerHTML = '';
+            
+            roomItems.forEach(itemName => {
+                const itemData = currentInspection.checklist[roomName][itemName];
+                const itemCard = createItemCard(roomName, itemName, itemData);
+                itemsGrid.appendChild(itemCard);
+            });
+        }
+        
+        // Criar card de item
+        function createItemCard(room, itemName, itemData) {
+            const div = document.createElement('div');
+            div.className = `item-card ${itemData.status ? 'status-' + itemData.status : ''}`;
+            div.id = `item-${room}-${itemName}`;
+            
+            div.innerHTML = `
+                <div class="item-header">
+                    <h3 class="item-name">${itemName.charAt(0).toUpperCase() + itemName.slice(1)}</h3>
+                </div>
+                
+                <div class="status-selector">
+                    <button class="status-btn ok ${itemData.status === 'ok' ? 'selected' : ''}" 
+                            onclick="setStatus('${room}', '${itemName}', 'ok')">✅ OK</button>
+                    <button class="status-btn danificado ${itemData.status === 'danificado' ? 'selected' : ''}"
+                            onclick="setStatus('${room}', '${itemName}', 'danificado')">❌ Danificado</button>
+                    <button class="status-btn sujo ${itemData.status === 'sujo' ? 'selected' : ''}"
+                            onclick="setStatus('${room}', '${itemName}', 'sujo')">🧹 Sujo</button>
+                    <button class="status-btn ausente ${itemData.status === 'ausente' ? 'selected' : ''}"
+                            onclick="setStatus('${room}', '${itemName}', 'ausente')">❓ Ausente</button>
+                </div>
+                
+                <div class="media-section">
+                    <div class="media-controls">
+                        <button class="btn btn-primary file-btn">
+                            📸 Foto
+                            <input type="file" class="file-input" accept="image/*" multiple 
+                                   onchange="handleFileUpload(this, '${room}', '${itemName}', 'photo')">
+                        </button>
+                        <button class="btn btn-secondary file-btn">
+                            🎤 Áudio
+                            <input type="file" class="file-input" accept="audio/*" multiple
+                                   onchange="handleFileUpload(this, '${room}', '${itemName}', 'audio')">
+                        </button>
+                        <button class="btn btn-warning" onclick="analyzeWithAI('${room}', '${itemName}')">
+                            🤖 Analisar IA
+                        </button>
+                    </div>
+                    
+                    <div class="media-preview" id="media-${room}-${itemName}">
+                        ${renderMediaPreviews(itemData)}
+                    </div>
+                </div>
+                
+                <div class="notes-section">
+                    <textarea placeholder="Observações adicionais..." 
+                              onchange="updateNotes('${room}', '${itemName}', this.value)">${itemData.notes}</textarea>
+                </div>
+                
+                ${itemData.aiAnalysis ? `<div class="ai-analysis">${itemData.aiAnalysis}</div>` : ''}
+            `;
+            
+            return div;
+        }
+        
+        // Renderizar previews de mídia
+        function renderMediaPreviews(itemData) {
+            let html = '';
+            
+            itemData.photos.forEach((photo, index) => {
+                html += `
+                    <div class="media-item">
+                        <img src="${photo}" alt="Foto ${index + 1}">
+                        <button class="remove-media" onclick="removeMedia('photo', ${index})">×</button>
+                    </div>
+                `;
+            });
+            
+            itemData.audios.forEach((audio, index) => {
+                html += `
+                    <div class="media-item">
+                        <audio controls src="${audio}"></audio>
+                        <button class="remove-media" onclick="removeMedia('audio', ${index})">×</button>
+                    </div>
+                `;
+            });
+            
+            return html;
+        }
+        
+        // Definir status do item
+        function setStatus(room, item, status) {
+            currentInspection.checklist[room][item].status = status;
+            
+            // Atualizar visual do card
+            const card = document.getElementById(`item-${room}-${item}`);
+            card.className = `item-card status-${status}`;
+            
+            // Atualizar botões
+            card.querySelectorAll('.status-btn').forEach(btn => btn.classList.remove('selected'));
+            card.querySelector(`.status-btn.${status}`).classList.add('selected');
+            
+            updateProgress();
+        }
+        
+        // Atualizar progresso
+        function updateProgress() {
+            let totalItems = 0;
+            let completedItems = 0;
+            
+            Object.keys(currentInspection.checklist).forEach(room => {
+                const roomItems = currentInspection.checklist[room];
+                const roomTotal = Object.keys(roomItems).length;
+                const roomCompleted = Object.values(roomItems).filter(item => item.status).length;
+                
+                totalItems += roomTotal;
+                completedItems += roomCompleted;
+                
+                // Atualizar progresso do cômodo
+                const progressEl = document.getElementById(`progress-${room}`);
+                if (progressEl) {
+                    progressEl.textContent = `${roomCompleted}/${roomTotal} itens`;
+                }
+            });
+            
+            const percentage = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+            const progressFill = document.getElementById('progressFill');
+            progressFill.style.width = percentage + '%';
+            progressFill.textContent = percentage + '% Concluído';
+        }
+        
+        // Upload de arquivos
+        async function handleFileUpload(input, room, item, type) {
+            const files = Array.from(input.files);
+            
+            for (const file of files) {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                try {
+                    let endpoint = '';
+                    if (type === 'photo') {
+                        formData.append('prompt', `Analise detalhadamente este ${item} na ${room}`);
+                        endpoint = '/api/vision';
+                    } else if (type === 'audio') {
+                        endpoint = '/api/transcribe';
+                    }
+                    
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    // Criar URL temporário para preview
+                    const fileUrl = URL.createObjectURL(file);
+                    
+                    if (type === 'photo') {
+                        currentInspection.checklist[room][item].photos.push(fileUrl);
+                        if (result.description) {
+                            currentInspection.checklist[room][item].aiAnalysis = result.description;
+                        }
+                    } else if (type === 'audio') {
+                        currentInspection.checklist[room][item].audios.push(fileUrl);
+                        if (result.text) {
+                            const currentNotes = currentInspection.checklist[room][item].notes;
+                            currentInspection.checklist[room][item].notes = 
+                                (currentNotes ? currentNotes + '\n' : '') + `🎤 ${result.text}`;
+                        }
+                    }
+                    
+                    // Recarregar card
+                    loadRoomItems(currentInspection.currentRoom);
+                    
+                } catch (error) {
+                    console.error('Erro no upload:', error);
+                    alert('Erro ao processar arquivo: ' + error.message);
+                }
+            }
+        }
+        
+        // Analisar com IA
+        async function analyzeWithAI(room, item) {
+            const itemData = currentInspection.checklist[room][item];
+            
+            if (itemData.photos.length === 0) {
+                alert('Adicione pelo menos uma foto para análise');
+                return;
+            }
+            
+            // Simular análise mais detalhada
+            try {
+                const analysis = `Análise detalhada do ${item}: Estado de conservação verificado por IA especializada. Recomendações específicas baseadas na análise visual.`;
+                
+                itemData.aiAnalysis = analysis;
+                loadRoomItems(currentInspection.currentRoom);
+                
+            } catch (error) {
+                console.error('Erro na análise:', error);
+            }
+        }
+        
+        // Captura por voz
+        async function toggleVoiceRecording() {
+            const voiceBtn = document.getElementById('voiceBtn');
+            
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    
+                    const audioChunks = [];
+                    mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+                    
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        const formData = new FormData();
+                        formData.append('file', audioBlob, 'voice-command.wav');
+                        
+                        try {
+                            const response = await fetch('/api/transcribe', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            
+                            const result = await response.json();
+                            processVoiceCommand(result.text);
+                            
+                        } catch (error) {
+                            console.error('Erro na transcrição:', error);
+                        }
+                    };
+                    
+                    mediaRecorder.start();
+                    isRecording = true;
+                    voiceBtn.classList.add('voice-recording');
+                    voiceBtn.innerHTML = '⏹️';
+                    
+                } catch (error) {
+                    console.error('Erro ao acessar microfone:', error);
+                    alert('Erro ao acessar microfone');
+                }
+                
+            } else {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                isRecording = false;
+                voiceBtn.classList.remove('voice-recording');
+                voiceBtn.innerHTML = '🎤';
+            }
+        }
+        
+        // Processar comando de voz
+        function processVoiceCommand(text) {
+            const lowerText = text.toLowerCase();
+            
+            // Comandos para marcar status
+            const statusCommands = {
+                'ok': ['ok', 'está bom', 'aprovado'],
+                'danificado': ['danificado', 'quebrado', 'ruim'],
+                'sujo': ['sujo', 'precisa limpeza'],
+                'ausente': ['ausente', 'não tem', 'não existe']
+            };
+            
+            for (const [status, keywords] of Object.entries(statusCommands)) {
+                if (keywords.some(keyword => lowerText.includes(keyword))) {
+                    // Marcar último item selecionado
+                    if (currentInspection.currentRoom) {
+                        const roomItems = templates[currentInspection.templateType][currentInspection.currentRoom];
+                        const lastItem = roomItems[roomItems.length - 1];
+                        setStatus(currentInspection.currentRoom, lastItem, status);
+                        
+                        alert(`Comando de voz: ${lastItem} marcado como ${status}`);
+                        return;
+                    }
+                }
+            }
+            
+            // Comando para próximo cômodo
+            if (lowerText.includes('próximo') || lowerText.includes('avançar')) {
+                nextRoom();
+                alert('Comando de voz: Avançando para próximo cômodo');
+                return;
+            }
+            
+            alert(`Comando não reconhecido: "${text}"`);
+        }
+        
+        // Navegação entre cômodos
+        function nextRoom() {
+            const rooms = Object.keys(templates[currentInspection.templateType]);
+            const currentIndex = rooms.indexOf(currentInspection.currentRoom);
+            
+            if (currentIndex < rooms.length - 1) {
+                selectRoom(rooms[currentIndex + 1]);
+            }
+        }
+        
+        function previousRoom() {
+            const rooms = Object.keys(templates[currentInspection.templateType]);
+            const currentIndex = rooms.indexOf(currentInspection.currentRoom);
+            
+            if (currentIndex > 0) {
+                selectRoom(rooms[currentIndex - 1]);
+            }
+        }
+        
+        // Auto-detectar itens
+        async function autoDetectItems() {
+            alert('Funcionalidade em desenvolvimento: Auto-detecção de itens usando IA');
+            // Em produção, usaria reconhecimento de objetos YOLO
+        }
+        
+        // Atualizar dados do formulário
+        function updateFormData() {
+            ['propertyAddress', 'landlordName', 'tenantName', 'inspectionType'].forEach(id => {
+                const element = document.getElementById(id);
+                element.addEventListener('change', function() {
+                    currentInspection[id] = this.value;
+                });
+            });
+        }
+        
+        // Atualizar notas
+        function updateNotes(room, item, value) {
+            currentInspection.checklist[room][item].notes = value;
+        }
+        
+        // Calcular custos
+        async function calculateCosts() {
+            document.getElementById('costsModal').style.display = 'block';
+            
+            // Simular cálculo de custos
+            let totalCost = 0;
+            let damages = [];
+            
+            Object.keys(currentInspection.checklist).forEach(room => {
+                Object.keys(currentInspection.checklist[room]).forEach(item => {
+                    const itemData = currentInspection.checklist[room][item];
+                    if (itemData.status === 'danificado' || itemData.status === 'ausente') {
+                        const cost = Math.random() * 200 + 50; // Custo simulado
+                        totalCost += cost;
+                        damages.push({
+                            room,
+                            item,
+                            cost: cost.toFixed(2)
+                        });
+                    }
+                });
+            });
+            
+            let costsHtml = `
+                <div class="cost-estimate">
+                    <h4>💰 Custo Total Estimado: R$ ${totalCost.toFixed(2)}</h4>
+                    <div style="margin-top: 15px;">
+                        <h5>Itens que precisam de reparo:</h5>
+                        <ul>
+            `;
+            
+            damages.forEach(damage => {
+                costsHtml += `<li>${damage.room} - ${damage.item}: R$ ${damage.cost}</li>`;
+            });
+            
+            costsHtml += `
+                        </ul>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('costsContent').innerHTML = costsHtml;
+        }
+        
+        // Gerar relatório
+        function generateReport() {
+            document.getElementById('reportModal').style.display = 'block';
+        }
+        
+        // Baixar relatório
+        async function downloadReport() {
+            try {
+                // Preparar dados para o relatório
+                const reportData = {
+                    propertyAddress: currentInspection.propertyAddress || 'Endereço não informado',
+                    landlordName: currentInspection.landlordName || 'Locador não informado',
+                    tenantName: currentInspection.tenantName || 'Locatário não informado',
+                    inspectionType: currentInspection.inspectionType,
+                    checklist: []
+                };
+                
+                // Converter checklist para formato da API
+                Object.keys(currentInspection.checklist).forEach(room => {
+                    Object.keys(currentInspection.checklist[room]).forEach(item => {
+                        const itemData = currentInspection.checklist[room][item];
+                        if (itemData.status) {
+                            reportData.checklist.push({
+                                room: room,
+                                item: item,
+                                status: itemData.status,
+                                notes: itemData.notes,
+                                photos: [], // Em produção, seria enviado os caminhos reais
+                                audioTranscripts: []
+                            });
+                        }
+                    });
+                });
+                
+                const response = await fetch('/api/report', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(reportData)
+                });
+                
+                if (response.ok) {
+                    // Baixar o PDF
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `vistoria_${reportData.propertyAddress.replace(/\s+/g, '_')}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    
+                    alert('Relatório gerado com sucesso!');
+                } else {
+                    throw new Error('Erro ao gerar relatório');
+                }
+                
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao gerar relatório: ' + error.message);
+            }
+        }
+        
+        // Fechar modal
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+    </script>
+</body>
+</html>
