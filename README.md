@@ -33,6 +33,21 @@ Corretores de imóveis perdem **2-3 horas** por vistoria fazendo:
 
 ---
 
+
+
+
+
+<img width="2816" height="1536" alt="Gemini_Generated_Image_87prpz87prpz87pr" src="https://github.com/user-attachments/assets/441f11cf-95f4-4956-aafa-fc90e91be310" />
+
+
+
+<img width="2816" height="1504" alt="Gemini_Generated_Image_xpn4aexpn4aexpn4" src="https://github.com/user-attachments/assets/141ffd17-b081-407c-9c6c-9492686cec2f" />
+
+
+
+
+
+
 ## 🏗️ Arquitetura do Sistema
 
 ```mermaid
