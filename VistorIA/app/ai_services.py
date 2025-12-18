@@ -6,6 +6,8 @@ from ultralytics import YOLO
 import base64
 import io
 import os
+import json
+import re
 from PIL import Image
 from typing import List, Dict, Optional, Tuple
 from fastapi import UploadFile
@@ -192,8 +194,9 @@ async def analyze_image_with_specialized_prompt(file: UploadFile, prompt: str) -
         data = await file.read()
         b64 = base64.b64encode(data).decode('utf-8')
         
+        # Usar gpt-4o-mini-2024-07-18 que é o snapshot específico do modelo
         response = await _client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o-mini-2024-07-18",
             messages=[
                 {
                     "role": "user",
@@ -421,28 +424,182 @@ async def calculate_repair_costs(inspection_items: List[Dict], region: str = "RJ
         'region': region
     }
 
-# Função para criar checklist automático baseado em detecção de objetos
+# Função auxiliar para detectar itens em uma única foto usando GPT Vision
+async def detect_items_in_single_image(photo: UploadFile) -> List[str]:
+    """Detecta itens em uma única foto usando GPT Vision"""
+    DETECTION_PROMPT = """Você é um especialista em vistoria imobiliária. Analise esta imagem cuidadosamente e identifique TODOS os itens físicos que devem ser verificados em uma vistoria.
+
+Categorias de itens a detectar:
+- Instalações sanitárias: pia, torneira, vaso sanitário, chuveiro, box, espelho, tanque
+- Estrutura: piso, parede, teto, janela, porta, azulejo, rejunte
+- Elétrica: tomadas, interruptores, lâmpadas, fiação visível
+- Móveis fixos: armário, bancada, prateleiras
+- Eletrodomésticos: fogão, geladeira, microondas, máquina de lavar
+- Externos: portão, muro, varal, churrasqueira, jardim
+
+REGRAS IMPORTANTES:
+1. Retorne APENAS um array JSON válido com strings em português
+2. Use nomes genéricos e padronizados (ex: "pia" não "pia de inox")
+3. Não inclua descrições, cores ou detalhes - apenas o nome do item
+4. Se houver múltiplos itens do mesmo tipo, liste apenas uma vez (ex: várias tomadas = apenas "tomadas")
+5. Seja específico: "vaso sanitário" não apenas "vaso"
+6. Formato obrigatório: ["item1", "item2", "item3"]
+
+Exemplo de resposta CORRETA:
+["pia", "torneira", "azulejo", "piso", "armário", "bancada", "tomadas", "interruptores"]
+
+Retorne SOMENTE o JSON array, sem explicações, sem markdown, sem texto adicional."""
+
+    try:
+        # Ler dados da foto
+        if hasattr(photo, 'file') and hasattr(photo.file, 'read'):
+            # É um BytesIO ou arquivo já aberto (MockUploadFile)
+            photo.file.seek(0)
+            photo_data = photo.file.read()
+            mime_type = getattr(photo, 'content_type', 'image/jpeg')
+        elif hasattr(photo, 'read'):
+            # É um UploadFile do FastAPI
+            try:
+                if hasattr(photo, 'seek'):
+                    await photo.seek(0) if hasattr(photo.seek, '__await__') else photo.seek(0)
+            except:
+                pass
+            # Tentar ler de forma assíncrona ou síncrona
+            if hasattr(photo.read, '__await__'):
+                photo_data = await photo.read()
+            else:
+                photo_data = photo.read()
+            mime_type = getattr(photo, 'content_type', 'image/jpeg')
+        else:
+            # Fallback: assumir que é bytes
+            photo_data = photo if isinstance(photo, bytes) else bytes(photo)
+            mime_type = 'image/jpeg'
+        
+        # Garantir que photo_data é bytes
+        if isinstance(photo_data, str):
+            photo_data = photo_data.encode('utf-8')
+        elif not isinstance(photo_data, bytes):
+            photo_data = bytes(photo_data)
+        
+        # Converter para base64
+        b64_image = base64.b64encode(photo_data).decode('utf-8')
+        
+        # Usar gpt-4o-mini-2024-07-18 que é o snapshot específico do modelo
+        print(f"Processando imagem com gpt-4o-mini-2024-07-18...")
+        response = await _client.chat.completions.create(
+            model="gpt-4o-mini-2024-07-18",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": DETECTION_PROMPT
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{mime_type};base64,{b64_image}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=500,
+            temperature=0.3
+        )
+        print(f"✅ Resposta recebida do modelo!")
+        
+        # Extrair resposta
+        response_text = response.choices[0].message.content.strip()
+        
+        # Limpar resposta (remover markdown code blocks se houver)
+        response_text = re.sub(r'```json\s*', '', response_text)
+        response_text = re.sub(r'```\s*', '', response_text)
+        response_text = response_text.strip()
+        
+        try:
+            detected_items = json.loads(response_text)
+            if isinstance(detected_items, list):
+                return [item.lower().strip() for item in detected_items if item]
+        except json.JSONDecodeError:
+            # Tentar extrair lista manualmente se JSON falhar
+            matches = re.findall(r'"([^"]+)"', response_text)
+            if matches:
+                return [item.lower().strip() for item in matches if item]
+            else:
+                # Fallback: dividir por vírgulas e limpar
+                items = [item.strip().strip('"').strip("'") for item in response_text.split(',')]
+                return [item.lower().strip() for item in items if item]
+        
+        return []
+        
+    except Exception as e:
+        import traceback
+        print(f"❌ Erro na detecção de itens em foto única: {e}")
+        print(traceback.format_exc())
+        # Retornar lista vazia em vez de levantar exceção para não quebrar o fluxo
+        return []
+
+# Função para criar checklist automático baseado em detecção de objetos usando GPT Vision
 async def auto_generate_checklist(room_photos: List[UploadFile]) -> Dict:
-    """Gera checklist automaticamente baseado nas fotos do cômodo"""
-    all_detected_objects = []
+    """Gera checklist automaticamente baseado nas fotos do cômodo usando GPT-4 Vision"""
     
-    for photo in room_photos:
-        photo_data = await photo.read()
-        detected = detect_objects_in_image(photo_data)
-        all_detected_objects.extend(detected)
-        await photo.seek(0)  # Reset para outras funções usarem
+    DETECTION_PROMPT = """Você é um especialista em vistoria imobiliária. Analise esta imagem cuidadosamente e identifique TODOS os itens físicos que devem ser verificados em uma vistoria.
+
+Categorias de itens a detectar:
+- Instalações sanitárias: pia, torneira, vaso sanitário, chuveiro, box, espelho, tanque
+- Estrutura: piso, parede, teto, janela, porta, azulejo, rejunte
+- Elétrica: tomadas, interruptores, lâmpadas, fiação visível
+- Móveis fixos: armário, bancada, prateleiras
+- Eletrodomésticos: fogão, geladeira, microondas, máquina de lavar
+- Externos: portão, muro, varal, churrasqueira, jardim
+
+REGRAS IMPORTANTES:
+1. Retorne APENAS um array JSON válido com strings em português
+2. Use nomes genéricos e padronizados (ex: "pia" não "pia de inox")
+3. Não inclua descrições, cores ou detalhes - apenas o nome do item
+4. Se houver múltiplos itens do mesmo tipo, liste apenas uma vez (ex: várias tomadas = apenas "tomadas")
+5. Seja específico: "vaso sanitário" não apenas "vaso"
+6. Formato obrigatório: ["item1", "item2", "item3"]
+
+Exemplo de resposta CORRETA:
+["pia", "torneira", "azulejo", "piso", "armário", "bancada", "tomadas", "interruptores"]
+
+Retorne SOMENTE o JSON array, sem explicações, sem markdown, sem texto adicional."""
+
+    all_detected_items = []
     
-    # Remover duplicatas
-    unique_objects = []
-    seen = set()
-    for obj in all_detected_objects:
-        obj_name = obj['object']
-        if obj_name not in seen:
-            seen.add(obj_name)
-            unique_objects.append(obj_name)
-    
-    return {
-        'detected_items': unique_objects,
-        'total_objects': len(all_detected_objects),
-        'unique_objects': len(unique_objects)
-    }
+    try:
+        # Usar a função auxiliar para cada foto
+        for photo in room_photos:
+            detected_items = await detect_items_in_single_image(photo)
+            all_detected_items.extend(detected_items)
+            await photo.seek(0)  # Reset para outras funções usarem
+        
+        # Remover duplicatas e normalizar
+        unique_items = []
+        seen = set()
+        
+        for item in all_detected_items:
+            # Normalizar: lowercase, remover espaços extras
+            normalized = item.lower().strip()
+            if normalized and normalized not in seen:
+                seen.add(normalized)
+                # Capitalizar primeira letra para melhor apresentação
+                unique_items.append(normalized)
+        
+        return {
+            'detected_items': unique_items,
+            'total_detections': len(all_detected_items),
+            'unique_items': len(unique_items),
+            'method': 'gpt-4-vision'
+        }
+        
+    except Exception as e:
+        import traceback
+        error_detail = str(e)
+        print(f"❌ Erro na detecção com GPT Vision: {error_detail}")
+        print(traceback.format_exc())
+        # Retornar erro detalhado para o frontend
+        raise Exception(f"Erro ao processar imagens: {error_detail}")

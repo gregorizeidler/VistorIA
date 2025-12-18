@@ -47,8 +47,15 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# Servir arquivos estáticos
-app.mount("/static", StaticFiles(directory="VistorIA/static"), name="static")
+# Servir arquivos estáticos (React build)
+static_dir = "VistorIA/static"
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    
+# Servir assets do React (JS, CSS)
+dist_dir = "VistorIA/static/dist"
+if os.path.exists(dist_dir):
+    app.mount("/assets", StaticFiles(directory=f"{dist_dir}/assets"), name="assets")
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -124,9 +131,16 @@ async def root():
 
 @app.get('/vistoria')
 async def vistoria_interface():
-    """Interface web completa para vistoria"""
-    with open('VistorIA/templates/vistoria.html', 'r', encoding='utf-8') as f:
-        return HTMLResponse(content=f.read())
+    """Interface web completa para vistoria - React App"""
+    # Servir a aplicação React buildada
+    react_index_path = 'VistorIA/static/dist/index.html'
+    if os.path.exists(react_index_path):
+        with open(react_index_path, 'r', encoding='utf-8') as f:
+            return HTMLResponse(content=f.read())
+    else:
+        # Fallback para HTML antigo se React não estiver buildado
+        with open('VistorIA/templates/vistoria.html', 'r', encoding='utf-8') as f:
+            return HTMLResponse(content=f.read())
 
 @app.get('/api/health')
 async def health():
@@ -195,10 +209,28 @@ async def enhanced_vision_analysis(file: UploadFile = File(...), item_type: str 
 async def auto_create_checklist(files: List[UploadFile] = File(...)):
     """Gera checklist automaticamente baseado nas fotos"""
     try:
+        import os
+        # Verificar se API key está configurada
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key or api_key == "sua_chave_openai_aqui" or api_key.strip() == "":
+            raise HTTPException(
+                status_code=500, 
+                detail="OPENAI_API_KEY não configurada. Configure sua chave no arquivo .env"
+            )
+        
+        if not files or len(files) == 0:
+            raise HTTPException(status_code=400, detail="Nenhum arquivo enviado")
+        
         result = await auto_generate_checklist(files)
         return result
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro na detecção automática: {str(e)}")
+        import traceback
+        error_detail = str(e)
+        print(f"Erro na detecção automática: {error_detail}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Erro na detecção automática: {error_detail}")
 
 # ==================== ENDPOINTS DE OCR ====================
 @app.post('/api/ocr')
@@ -325,12 +357,74 @@ async def api_transcribe(file: UploadFile = File(...)):
 
 @app.post('/api/vision')
 async def api_vision(file: UploadFile = File(...), prompt: str = Form('Descreva o estado do item na imagem.')):
-    """Analisa imagem e gera descrição usando GPT-4 Vision"""
+    """Analisa imagem e gera descrição usando GPT-4 Vision, também detecta outros itens automaticamente"""
     try:
-        description = await analyze_image(file, prompt)
-        return {'description': description}
+        from .ai_services import detect_items_in_single_image
+        import os
+        from io import BytesIO
+        
+        # Verificar se API key está configurada
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key or api_key == "sua_chave_openai_aqui" or api_key.strip() == "":
+            raise HTTPException(
+                status_code=500, 
+                detail="OPENAI_API_KEY não configurada. Configure sua chave no arquivo .env"
+            )
+        
+        # Ler arquivo uma vez em bytes
+        file_data = await file.read()
+        content_type = file.content_type or 'image/jpeg'
+        filename = file.filename or 'image.jpg'
+        
+        # Criar objetos BytesIO para cada função
+        file1_bytes = BytesIO(file_data)
+        file2_bytes = BytesIO(file_data)
+        
+        # Criar UploadFile simulado para análise principal
+        class MockUploadFile:
+            def __init__(self, file_bytes, content_type, filename):
+                self.file = file_bytes
+                self.content_type = content_type
+                self.filename = filename
+            
+            def read(self):
+                self.file.seek(0)
+                return self.file.read()
+            
+            def seek(self, pos):
+                self.file.seek(pos)
+                return self
+        
+        file1 = MockUploadFile(file1_bytes, content_type, filename)
+        file2 = MockUploadFile(file2_bytes, content_type, filename)
+        
+        # Análise principal do item
+        try:
+            description = await analyze_image(file1, prompt)
+        except Exception as e:
+            print(f"Erro na análise principal: {e}")
+            description = f"Erro ao analisar imagem: {str(e)}"
+        
+        # Detecção automática de outros itens na foto (não bloquear se falhar)
+        try:
+            detected_items = await detect_items_in_single_image(file2)
+        except Exception as e:
+            print(f"Erro na detecção de itens: {e}")
+            detected_items = []
+        
+        return {
+            'description': description,
+            'detected_items': detected_items or [],
+            'has_other_items': len(detected_items or []) > 0
+        }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro na análise de imagem: {str(e)}")
+        import traceback
+        error_detail = str(e)
+        print(f"Erro na análise de imagem: {error_detail}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Erro na análise de imagem: {error_detail}")
 
 @app.post('/api/summarize')
 async def api_summarize(text: str = Form(...)):
